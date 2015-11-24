@@ -1,0 +1,214 @@
+\documentclass[11pt]{article}
+
+\makeatletter
+%\usepackage{color}
+\usepackage{xcolor}
+\usepackage{geometry}
+%\usepackage[sc]{mathpazo}
+\geometry{verbose,tmargin=2.5cm,bmargin=2.5cm,lmargin=2.5cm,rmargin=2.5cm}
+
+
+
+\usepackage{setspace}
+\usepackage{graphicx, verbatim}  % another package that works for figures
+\usepackage{subfigure}  % for subfigures
+\usepackage{amsmath}  % for math spacing
+%\usepackage{amssymb}  % for math spacing
+\usepackage{url}  % Hyphenation of URLs.
+\usepackage{lscape}  % Useful for wide tables or figures.
+\usepackage[justification=raggedright]{caption}	% makes captions ragged right - thanks to Bryce Lobdell
+\usepackage{times}  %change font to times new roman!! take that computer modern!
+\usepackage{pgfgantt}
+\usepackage{fancyvrb}  %customize commands for typesets
+\DefineShortVerb{\|}   %customized |..| to type inline code font
+
+\setlength{\textwidth}{6.5in} 
+\setlength{\textheight}{9in}
+\setlength{\oddsidemargin}{0in} 
+\setlength{\evensidemargin}{0in}
+\setlength{\topmargin}{-1.5cm}
+
+
+
+
+\title{Hypothesis/Results}
+\date{March 29, 2013}
+\author{safyre}
+
+\begin{document}
+
+<<setup, include=FALSE, cache=FALSE>>=
+# set global chunk options
+
+knitrSet <- function(basename=NULL, w=4, h=3,
+                     fig.align='center', fig.show='hold',fig.pos='htbp',
+                     fig.lp=paste('fig', basename, sep=':'),
+                     tidy=FALSE, stop_on_error=2,
+                     width=61, keep.source=TRUE) if(length(basename)) basename <- paste(basename, '-', sep='')
+
+## fills Sweavel boxes when font size is \small and svmono.cls
+## is in effect (use 65 without svmono)
+  
+opts_knit$set(aliases=c(h='fig.height', w='fig.width',
+                  cap='fig.cap', scap='fig.scap'),
+                eval.after = c('fig.cap','fig.scap'))  
+#Above credit goes to biostatistics at Vanderbuilt http://biostat.mc.vanderbilt.edu/wiki/Main/KnitrHowto#Figure_labels
+  
+opts_chunk$set( fig.align='center', fig.show='hold', h=5, par=TRUE, out.width=NULL)
+
+options(replace.assign=TRUE, width=52)
+
+knit_hooks$set(document = function(x) {
+ sub('\\usepackage{graphicx, color}', '\\usepackage{graphicx,xcolor}', x, fixed = TRUE)
+})
+
+#https://github.com/yihui/formatR/wiki
+library(gWidgetsRGtk2)
+library(formatR)
+
+@
+
+
+
+\maketitle
+
+\section{Baseline Data}
+
+The objective of this section is to characterize the nematode and soybean populations without virus infection.  The |zero_inf| or \emph{zero infection} simulation run constitutes the project's control experiment.
+
+<<DBconnect, echo = FALSE, message=FALSE>>=
+## Compare nematode inhibition distributions
+# Connect to DB
+require("RSQLite")
+db="/Users/sandrsn3/Documents/NematodeABM.db"
+con <- dbConnect("SQLite", db)
+results = list()
+@
+%After connecting to the database, we can extract a table and run statistics on %the data it contains.
+
+<<extract_control, eval=TRUE, echo=FALSE>>=
+zeroinf <- dbGetQuery(con, "select * from zeroinf_dat")
+zeroinf$NemDiff <- c(0, diff(zeroinf$Nematodes))
+@
+%First, however, we'll create a sub table with data that have time references. (hidden)
+
+<<subs, eval=TRUE, echo=TRUE>>=
+zinf_sub <- subset(zeroinf, NemDiff != 0 & NemDiff > -40000)
+zinf_sub <- subset(zinf_sub, Tick != 0)
+zinf_sub$yr <- zinf_sub$Tick %/%  365
+@
+
+
+\begin{figure}
+<<hist1, echo=TRUE, fig.keep='high', results='as.is', tidy=TRUE, eval=TRUE>>=
+hist(zinf_sub$NemDiff/zinf_sub$Nematodes, prob=T, breaks=30, xlab = 'Nematode Distribution', col="light blue",xlim = c(-0.5, .5), ylim= c(0, 50), main = "")
+lines(density(zinf_sub$NemDiff/zinf_sub$Nematodes), lwd=2)
+
+for(year in unique(zinf_sub$yr)) {
+  year_sub <- subset(zinf_sub, yr==year)
+	lines(density(year_sub$NemDiff/year_sub$Nematodes), col=rainbow((year+1)/10.1))
+
+}
+@
+\caption[histogram1]{Histogram of Nemaotode Distrubution without virus infection}
+\end{figure}
+
+\begin{figure}
+<<hist2, echo=TRUE, fig.keep='high', tidy=FALSE, eval=TRUE>>=
+hist(zinf_sub$Health_mean, prob=T, breaks=30, xlab = 'Mean Nematode Health',
+ col="light blue",xlim = c(40, 100), ylim= c(0, 0.05), main = "")
+lines(density(zinf_sub$Health_mean), lwd=2)
+
+for(year in unique(zinf_sub$yr)) {
+	year_sub <- subset(zinf_sub, yr==year)
+	lines(density(year_sub$Health_mean), col=gray((year+1)/10.1))
+}
+@
+ \caption{Mean Health without Virus infection}
+ \end{figure}
+ 
+\begin{figure}
+<<box1, echo=TRUE, fig.keep='high', tidy=TRUE, eval=TRUE>>=
+boxplot(NemDiff/Nematodes ~ yr, zinf_sub, pch=".",
+	main="Nematode inhibition by year", 
+	xlab="Year", ylab="Inhibition");
+@
+\caption[boxplot1]{Nematode distrubution??}
+\end{figure}
+
+
+Boxes 2 and 3 should show up below here.
+<<box2-3, echo=TRUE, fig.keep='high',tidy=FALSE, eval=TRUE>>=
+box2 <- boxplot(Health_mean ~ yr, zinf_sub, pch=".",                
+	main="Mean Nematode Health by year", 
+	xlab="Year", ylab="Health (%)");
+
+box3 <-boxplot(Health_stdev ~ yr, zinf_sub, pch=".",
+	main="Mean Nematode Health by year", 
+	xlab="Year", ylab="Health (%)");
+@
+
+Looks like issue is above somehow.\\  Coplot is below
+<<co-plot, fig.keep='high', tidy=TRUE, eval=TRUE>>=
+coplot(Health_stdev ~ Health_mean | yr, zinf_sub, pch=".", rows=1)
+@
+
+
+
+<<box-rest,fig.keep='high', tidy=FALSE, eval=TRUE>>=
+boxplot(NemDiff/Nematodes ~ yr, zinf_sub, pch=".",
+	at = 0:4 - 0.2, boxwex=0.25, col="lightblue",
+	subset = yr <= 4, 
+	main="Nematode inhibition by year", 
+	xlab="Year", ylab="Inhibition")
+       
+boxplot(Health_mean ~ yr, zinf_sub, pch=".",
+	at = 0:4 - 0.2, boxwex=0.25, col="lightblue",
+	subset = yr <= 4, 
+	main="Mean Nematode Health by year", 
+	xlab="Year", ylab="Health (%)")
+	
+@
+
+More plots...let's see 
+
+<<box-more, echo=TRUE, fig.keep='high', tidy=FALSE, eval=TRUE>>=
+boxplot(NemDiff/Nematodes ~ yr, zinf_sub, pch=".",
+	at = 0:4 - 0.2, boxwex=0.25, col="lightblue",
+	subset = yr <= 4, 
+	main="Nematode inhibition by year", 
+	xlab="Year", ylab="Inhibition")
+	
+legend("bottomright", c("No viruses"),
+       fill = c("lightblue"))
+       
+boxplot(Health_mean ~ yr, zinf_sub, pch=".",
+	at = 0:4 - 0.2, boxwex=0.25, col="lightblue",
+	subset = yr <= 4, 
+	main="Mean Nematode Health by year", 
+	xlab="Year", ylab="Health (%)")
+	
+boxplot(Nematodes ~ yr, zinf_sub, pch=".",
+	at = 0:4 - 0.2, boxwex=0.25, col="lightblue",
+	subset = yr <= 4, 
+	main="Nematode inhibition by year", 
+	xlab="Year", ylab="Inhibition")
+@
+\section{Compare with Low Incidence Infection}
+
+<<extracttable, eval=TRUE, echo=TRUE>>=
+lowinf <- dbGetQuery(con, "select * from LowIncidenceInfection_dat")
+lowinf$NemDiff <- c(0, diff(lowinf$Nematodes))
+
+ks.test(lowinf$Nematodes, zinf_sub$Nematodes)
+@
+\begin{figure}
+<<>>=
+hist(lowinf$NemDiff/lowinf$Nematodes, prob=T, breaks=30, xlab = 'Nematode Distribution', col="light blue",xlim = c(-0.5, .5), ylim= c(0, 50), main = "")
+lines(density(lowinf$NemDiff/lowinf$Nematodes), lwd=2)
+
+for(year in unique(lowinf$yr)) {
+  year_sub <- subset(lowinf, yr==year)
+  lines(density(year_sub$NemDiff/year_sub$Nematodes), col=rainbow((year+1)/10.1))
+@
+\end{document}
